@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Mumbai UHI Intelligence Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+:root {
+  --bg0: #05090F;
+  --bg1: #0A1120;
+  --bg2: #0F1A2E;
+  --bg3: #162135;
+  --border: #1E3050;
+  --border2: #243A5E;
+  --text1: #E2EAF4;
+  --text2: #8BA3C0;
+  --text3: #4D6A8A;
+  --orange: #F97316;
+  --orange2: #FB923C;
+  --orange-dim: rgba(249,115,22,0.12);
+  --blue: #3B82F6;
+  --blue-dim: rgba(59,130,246,0.1);
+  --green: #10B981;
+  --green-dim: rgba(16,185,129,0.1);
+  --red: #EF4444;
+  --red-dim: rgba(239,68,68,0.1);
+  --amber: #F59E0B;
+  --teal: #14B8A6;
+  --sidebar-w: 280px;
+  --topbar-h: 64px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Space Grotesk', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg0);
+  color: var(--text1);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--topbar-h);
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 24px;
+  z-index: 100;
+}
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+.logo-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #F97316, #EF4444);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+.logo-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text1);
+  line-height: 1.2;
+}
+.logo-sub {
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--orange);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.topbar-nav {
+  display: flex;
+  gap: 4px;
+  margin-left: 32px;
+}
+.nav-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+}
+.nav-btn:hover { background: var(--bg3); color: var(--text1); }
+.nav-btn.active { background: var(--orange-dim); color: var(--orange); }
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text2);
+}
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.last-updated {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text3);
+}
+
+/* ── LAYOUT ── */
+.layout {
+  display: flex;
+  padding-top: var(--topbar-h);
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--bg1);
+  border-right: 1px solid var(--border);
+  padding: 20px 16px;
+  position: fixed;
+  top: var(--topbar-h);
+  left: 0;
+  bottom: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.sidebar-section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 8px;
+}
+.sidebar-section-title {
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--orange);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sidebar-section-title::before {
+  content: '';
+  width: 3px; height: 10px;
+  background: var(--orange);
+  border-radius: 2px;
+}
+
+.form-group { margin-bottom: 12px; }
+.form-label {
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 5px;
+  display: block;
+  font-family: var(--mono);
+}
+.form-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text1);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color .15s;
+}
+.form-input:focus { border-color: var(--orange); }
+.form-input::-webkit-calendar-picker-indicator { filter: invert(0.4); }
+
+.range-row {
+  display: flex;
+  gap: 6px;
+}
+
+.run-btn {
+  width: 100%;
+  padding: 10px;
+  background: linear-gradient(135deg, #F97316, #EF4444);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: .02em;
+  margin-top: 4px;
+  transition: opacity .15s, transform .1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.run-btn:hover { opacity: .9; }
+.run-btn:active { transform: scale(.98); }
+.run-btn.loading { opacity: .6; pointer-events: none; }
+
+.mini-metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.mini-metric:last-child { border-bottom: none; }
+.mini-metric-label { color: var(--text2); }
+.mini-metric-val {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--orange);
+  background: var(--orange-dim);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+
+.main {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.page { display: none; }
+.page.active { display: flex; flex-direction: column; gap: 20px; }
+
+
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.metric-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .2s;
+}
+.metric-card:hover { border-color: var(--border2); }
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent, var(--orange));
+}
+.metric-card.blue::before  { background: var(--blue); }
+.metric-card.green::before { background: var(--green); }
+.metric-card.amber::before { background: var(--amber); }
+.metric-card.teal::before  { background: var(--teal); }
+.metric-label { font-size: 11px; color: var(--text3); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+.metric-value { font-size: 26px; font-weight: 600; color: var(--text1); line-height: 1; font-family: var(--mono); }
+.metric-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+.metric-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-top: 6px;
+  font-family: var(--mono);
+}
+.badge-up   { background: rgba(16,185,129,.15); color: var(--green); }
+.badge-down { background: var(--red-dim); color: var(--red); }
+.badge-flat { background: var(--blue-dim); color: var(--blue); }
+
+
+.chart-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+}
+.chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text1);
+  margin-bottom: 3px;
+}
+.chart-subtitle {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--mono);
+}
+.chart-actions { display: flex; gap: 6px; }
+.chip-btn {
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  font-size: 11px;
+  font-family: var(--mono);
+  cursor: pointer;
+  transition: all .1s;
+}
+.chip-btn:hover, .chip-btn.active { background: var(--orange-dim); color: var(--orange); border-color: var(--orange); }
+.chart-wrap { position: relative; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.three-col { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+
+/* ── MAP ── */
+#uhi-map {
+  width: 100%;
+  height: 460px;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.leaflet-container { background: #060c15 !important; }
+.map-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text2);
+  font-family: var(--mono);
+}
+.legend-circle {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.2);
+}
+
+
+.heatmap-grid { overflow-x: auto; margin-top: 6px; }
+.heatmap-table {
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 11px;
+  width: 100%;
+}
+.heatmap-table th {
+  color: var(--text3);
+  padding: 4px 6px;
+  font-weight: 400;
+  text-align: center;
+  white-space: nowrap;
+}
+.heatmap-table td {
+  width: 52px;
+  height: 28px;
+  text-align: center;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  transition: transform .1s;
+  cursor: default;
+}
+.heatmap-table td:hover { transform: scale(1.1); z-index: 1; position: relative; }
+.heatmap-table .year-cell { color: var(--text2); padding: 4px 8px; text-align: right; }
+
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 12px;
+  margin-top: 12px;
+}
+.summary-table th {
+  text-align: left;
+  padding: 8px 12px;
+  color: var(--text3);
+  font-weight: 400;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  border-bottom: 1px solid var(--border);
+}
+.summary-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text1);
+}
+.summary-table tr:last-child td { border-bottom: none; }
+.summary-table .uhi-val { color: var(--orange); }
+
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+.loader-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10,17,32,.7);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  z-index: 10;
+}
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--orange);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+
+.timeline-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 4px;
+}
+.timeline-label { font-size: 11px; color: var(--text3); font-family: var(--mono); white-space: nowrap; }
+.timeline-input {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  background: var(--border2);
+  border-radius: 2px;
+  outline: none;
+}
+.timeline-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--orange);
+  cursor: pointer;
+}
+.timeline-val { font-size: 12px; color: var(--orange); font-family: var(--mono); min-width: 36px; }
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--text3);
+  font-size: 13px;
+  gap: 10px;
+}
+.empty-icon { font-size: 32px; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+@media (max-width: 1100px) {
+  .metrics-row { grid-template-columns: repeat(2,1fr); }
+  .two-col, .three-col { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="topbar-logo" href="#">
+    <div class="logo-icon">🌡</div>
+    <div>
+      <div class="logo-text">UHI Intelligence</div>
+      <div class="logo-sub">Mumbai · 2015–2040</div>
+    </div>
+  </a>
+  <nav class="topbar-nav">
+    <button class="nav-btn active" onclick="switchPage('dashboard', this)">Dashboard</button>
+    <button class="nav-btn" onclick="switchPage('forecast', this)">Forecast</button>
+    <button class="nav-btn" onclick="switchPage('analysis', this)">Analysis</button>
+    <button class="nav-btn" onclick="switchPage('map', this)">Heatmap Map</button>
+  </nav>
+  <div class="topbar-right">
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      <span id="model-status">Model Ready</span>
+    </div>
+    <div class="last-updated" id="last-updated-ts">—</div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Historical Range</div>
+      <div class="form-group">
+        <label class="form-label">Start Date</label>
+        <input class="form-input" type="date" id="hist-start" value="2015-01-01"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">End Date</label>
+        <input class="form-input" type="date" id="hist-end" value="2025-12-31"/>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Forecast Config</div>
+      <div class="form-group">
+        <label class="form-label">Forecast Horizon</label>
+        <select class="form-input" id="forecast-end-year">
+          <option value="2030">To 2030 (5 yr)</option>
+          <option value="2035">To 2035 (10 yr)</option>
+          <option value="2040" selected>To 2040 (15 yr)</option>
+          <option value="2045">To 2045 (20 yr)</option>
+          <option value="2050">To 2050 (25 yr)</option>
+        </select>
+      </div>
+      <button class="run-btn" id="run-btn" onclick="runAll()">
+        <span>▶</span> Run Prediction
+      </button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Model Metrics</div>
+      <div class="mini-metric">
+        <span class="mini-metric-label">RMSE</span>
+        <span class="mini-metric-val" id="sb-rmse">—</span>
+      </div>
+      <div class="mini-metric">
+        <span class="mini-metric-label">MAE</span>
+        <span class="mini-metric-val" id="sb-mae">—</span>
+      </div>
+      <div class="mini-metric">
+        <span class="mini-metric-label">R²</span>
+        <span class="mini-metric-val" id="sb-r2">—</span>
+      </div>
+      <div class="mini-metric">
+        <span class="mini-metric-label">UHI Slope</span>
+        <span class="mini-metric-val" id="sb-slope">—</span>
+      </div>
+      <div class="mini-metric">
+        <span class="mini-metric-label">Training Rows</span>
+        <span class="mini-metric-val" id="sb-train">—</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section" style="margin-top:auto">
+      <div class="sidebar-section-title">Data Source</div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.6;font-family:var(--mono)">
+        Mumbai_UHI_7day<br>
+        2015_2025.csv<br>
+        <br>
+        Weekly resolution<br>
+        NDVI · LST · UHI<br>
+        RF Hybrid + LSTM
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <div class="page active" id="page-dashboard">
+
+
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-label">Current UHI (latest)</div>
+          <div class="metric-value" id="m-current-uhi">—</div>
+          <div class="metric-sub">°C above rural baseline</div>
+          <div class="metric-badge badge-up" id="m-uhi-badge">↑ warming trend</div>
+        </div>
+        <div class="metric-card blue">
+          <div class="metric-label">Historical Mean UHI</div>
+          <div class="metric-value" id="m-mean-uhi">—</div>
+          <div class="metric-sub">2015–2025 average °C</div>
+          <div class="metric-badge badge-flat" id="m-mean-badge">seasonal variation</div>
+        </div>
+        <div class="metric-card green">
+          <div class="metric-label">Model Accuracy R²</div>
+          <div class="metric-value" id="m-r2">—</div>
+          <div class="metric-sub">RF Hybrid test set</div>
+          <div class="metric-badge badge-up">RF + linear trend</div>
+        </div>
+        <div class="metric-card amber">
+          <div class="metric-label">2040 Forecast UHI</div>
+          <div class="metric-value" id="m-2040-uhi">—</div>
+          <div class="metric-sub">projected annual mean °C</div>
+          <div class="metric-badge badge-down" id="m-2040-badge">↑ vs today</div>
+        </div>
+      </div>
+
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title" >Urban Heat Island — Historical + Forecast</div>
+            <div class="chart-subtitle">Weekly UHI (°C) · RF Hybrid model · 95% confidence interval</div>
+          </div>
+          <div class="chart-actions">
+            <button class="chip-btn active" onclick="setSmooth(0,this)">Raw</button>
+            <button class="chip-btn" onclick="setSmooth(4,this)">4-wk avg</button>
+            <button class="chip-btn" onclick="setSmooth(13,this)">13-wk avg</button>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:320px;width: 1175px">
+          <canvas id="main-chart"></canvas>
+          <div class="loader-overlay" id="main-loader"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+
+      <div class="two-col">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Actual vs Predicted (Test Set)</div>
+              <div class="chart-subtitle">RF Hybrid · 20% holdout</div>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:220px;width: 1175px;">
+            <canvas id="test-chart"></canvas>
+            <div class="loader-overlay" id="test-loader"><div class="spinner"></div></div>
+          </div>
+        </div>
+        </div>
+
+    </div>
+
+
+    <div class="page" id="page-forecast">
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">UHI Long-Range Forecast</div>
+            <div class="chart-subtitle">Annual aggregated predictions · 95% CI band</div>
+          </div>
+          <div class="chart-actions">
+            <button class="chip-btn active" onclick="setForecastView('annual', this)">Annual</button>
+            <button class="chip-btn" onclick="setForecastView('weekly', this)">Weekly</button>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:320px">
+          <canvas id="forecast-chart"></canvas>
+          <div class="loader-overlay" id="forecast-loader"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <div class="three-col">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Annual UHI Trend</div>
+              <div class="chart-subtitle">Yearly mean + linear projection</div>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:240px">
+            <canvas id="trend-chart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">5-Year Summary</div>
+              <div class="chart-subtitle">Forecast period breakdown</div>
+            </div>
+          </div>
+          <table class="summary-table" id="summary-table">
+            <thead>
+              <tr><th>Period</th><th>Mean UHI</th><th>CI Low</th><th>CI High</th></tr>
+            </thead>
+            <tbody><tr><td colspan="4"><div class="empty-state"><div class="empty-icon">📊</div>Run prediction first</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-analysis">
+
+      <div class="two-col">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Monthly UHI Seasonality</div>
+              <div class="chart-subtitle">Mean ± std across all years</div>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:260px">
+            <canvas id="seasonal-chart"></canvas>
+            <div class="loader-overlay" id="seasonal-loader"><div class="spinner"></div></div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">LST Trend Over Time</div>
+              <div class="chart-subtitle">Urban vs Rural land surface temp</div>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:260px">
+            <canvas id="lst-chart"></canvas>
+            <div class="loader-overlay" id="lst-loader"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">UHI Heatmap — Year × Month</div>
+            <div class="chart-subtitle">Mean UHI (°C) per calendar cell · warmer = higher intensity</div>
+          </div>
+        </div>
+        <div class="heatmap-grid" id="heatmap-container">
+          <div class="empty-state"><div class="spinner"></div><span>Loading heatmap...</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="page" id="page-map">
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Mumbai UHI Spatial Distribution</div>
+            <div class="chart-subtitle">Neighbourhood-level UHI intensity · circle size = severity · click for details</div>
+          </div>
+          <div class="chart-actions">
+            <button class="chip-btn active" id="map-mode-circles" onclick="setMapMode('circles',this)">Circles</button>
+            <button class="chip-btn" id="map-mode-heat" onclick="setMapMode('heat',this)">Heatmap</button>
+          </div>
+        </div>
+        <div style="position:relative">
+          <div id="uhi-map"></div>
+        </div>
+        <div class="map-legend">
+          <div class="legend-item"><div class="legend-circle" style="background:#10B981"></div> Low (&lt;3°C)</div>
+          <div class="legend-item"><div class="legend-circle" style="background:#F59E0B"></div> Moderate (3–6°C)</div>
+          <div class="legend-item"><div class="legend-circle" style="background:#EF4444"></div> High (6–9°C)</div>
+          <div class="legend-item"><div class="legend-circle" style="background:#7C3AED"></div> Very High (&gt;9°C)</div>
+          <div style="margin-left:auto;font-size:11px;color:var(--text3);font-family:var(--mono)">Data: RF Hybrid forecast · 2025</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">UHI by Zone</div>
+              <div class="chart-subtitle">Current intensity ranking</div>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:260px">
+            <canvas id="zone-chart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Zone Forecast 2040</div>
+              <div class="chart-subtitle">Projected increase vs current</div>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:260px">
+            <canvas id="zone-forecast-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+
+ 
+const ZONES = [
+  { name:'Dharavi',       lat:19.0368, lng:72.8554, uhi:8.2,  proj:10.8, type:'dense-urban' },
+  { name:'Kurla',         lat:19.0728, lng:72.8826, uhi:7.8,  proj:10.2, type:'dense-urban' },
+  { name:'Andheri East',  lat:19.1136, lng:72.8697, uhi:7.1,  proj:9.3,  type:'mixed' },
+  { name:'Worli',         lat:19.0130, lng:72.8140, uhi:6.1,  proj:8.1,  type:'commercial' },
+  { name:'Bandra West',   lat:19.0596, lng:72.8295, uhi:5.9,  proj:7.8,  type:'mixed' },
+  { name:'Thane City',    lat:19.2183, lng:72.9781, uhi:5.5,  proj:7.2,  type:'suburban' },
+  { name:'Colaba',        lat:18.9067, lng:72.8147, uhi:4.2,  proj:5.6,  type:'coastal' },
+  { name:'Borivali',      lat:19.2307, lng:72.8567, uhi:4.8,  proj:6.4,  type:'suburban' },
+  { name:'Navi Mumbai',   lat:19.0330, lng:73.0297, uhi:3.8,  proj:5.0,  type:'planned' },
+  { name:'Powai',         lat:19.1176, lng:72.9060, uhi:3.1,  proj:4.2,  type:'lake-adj' },
+  { name:'Mulund',        lat:19.1727, lng:72.9570, uhi:5.2,  proj:6.9,  type:'suburban' },
+  { name:'Goregaon',      lat:19.1663, lng:72.8526, uhi:5.6,  proj:7.4,  type:'mixed' },
+];
+
+ 
+const charts = {};
+let histData = null, forecastData = null, forecastView = 'annual';
+let smoothWindow = 0;
+
+const CHART_DEFAULTS = {
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: { duration: 600, easing: 'easeInOutQuart' },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#0F1A2E',
+      borderColor: '#1E3050',
+      borderWidth: 1,
+      titleColor: '#E2EAF4',
+      bodyColor: '#8BA3C0',
+      titleFont: { family: "'JetBrains Mono', monospace", size: 11 },
+      bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
+      padding: 10,
+      callbacks: {
+        label: ctx => ` ${ctx.dataset.label}: ${Number(ctx.raw).toFixed(2)}°C`
+      }
+    }
+  },
+  scales: {
+    x: {
+      ticks: { color: '#4D6A8A', font: { family:"'JetBrains Mono',monospace", size:10 }, maxTicksLimit: 8 },
+      grid: { color: '#1E3050', lineWidth: 0.5 },
+      border: { color: '#1E3050' },
+      
+      title:{
+        display:true,
+        text:'Time (Year / Month)',
+        color: '#8BA3C0',
+      font: { size: 12, family: "'JetBrains Mono', monospace" }
+      }
+    },
+    y: {
+      ticks: { color: '#4D6A8A', font: { family:"'JetBrains Mono',monospace", size:10 }, callback: v => v.toFixed(1)+'°' },
+      grid: { color: '#1E3050', lineWidth: 0.5 },
+      border: { color: '#1E3050' },
+      
+      title: {
+      display: true,
+      text: 'UHI (°C)',
+      color: '#8BA3C0',
+      font: { size: 12, family: "'JetBrains Mono', monospace" }
+}
+    }
+  }
+};
+
+ 
+
+  
+function rollingMean(arr, w) {
+  if (w <= 1) return arr;
+  return arr.map((_, i) => {
+    const slice = arr.slice(Math.max(0,i-w+1), i+1);
+    return slice.reduce((a,b)=>a+b,0)/slice.length;
+  });
+}
+
+function subsample(arr, labels, maxPoints=300) {
+  if (arr.length <= maxPoints) return { arr, labels };
+  const step = Math.ceil(arr.length / maxPoints);
+  return {
+    arr:    arr.filter((_,i)=>i%step===0),
+    labels: labels.filter((_,i)=>i%step===0)
+  };
+}
+
+function uhi2color(uhi, alpha=0.9) {
+  if (uhi < 3)  return `rgba(16,185,129,${alpha})`;
+  if (uhi < 6)  return `rgba(245,158,11,${alpha})`;
+  if (uhi < 9)  return `rgba(239,68,68,${alpha})`;
+  return              `rgba(124,58,237,${alpha})`;
+}
+
+function labelYear(dateStr) { return dateStr.substring(0,4); }
+function labelMonth(dateStr) { return dateStr.substring(0,7); }
+
+function setLoading(id, on) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = on ? 'flex' : 'none';
+}
+
+function showRunBtn(loading) {
+  const btn = document.getElementById('run-btn');
+  btn.classList.toggle('loading', loading);
+  btn.innerHTML = loading
+    ? '<div class="spinner" style="width:16px;height:16px;border-width:2px"></div> Running...'
+    : '<span>▶</span> Run Prediction';
+}
+
+ 
+
+ 
+const API = 'http://127.0.0.1:5000/api';
+
+async function fetchJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`API error ${r.status}`);
+  return r.json();
+}
+
+async function loadMetrics() {
+  try {
+    const d = await fetchJSON(`${API}/metrics`);
+    document.getElementById('sb-rmse').textContent  = d.rmse.toFixed(4)+'°C';
+    document.getElementById('sb-mae').textContent   = d.mae.toFixed(4)+'°C';
+    document.getElementById('sb-r2').textContent    = d.r2.toFixed(4);
+    document.getElementById('sb-slope').textContent = (d.uhi_trend_slope>0?'+':'')+d.uhi_trend_slope.toFixed(4)+'/yr';
+    document.getElementById('sb-train').textContent = d.n_train+' wks';
+    document.getElementById('m-r2').textContent     = d.r2.toFixed(3);
+    document.getElementById('last-updated-ts').textContent = 'Updated '+new Date().toLocaleTimeString();
+    return d;
+  } catch(e) { console.warn('metrics fetch failed', e); }
+}
+
+async function loadHistorical() {
+  const start = document.getElementById('hist-start').value;
+  const end   = document.getElementById('hist-end').value;
+  setLoading('main-loader', true);
+  setLoading('test-loader', true);
+  setLoading('lst-loader', true);
+  try {
+    const d = await fetchJSON(`${API}/historical?start=${start}&end=${end}`);
+    histData = d;
+
+    const uhiVals = d.uhi.filter(v=>v!==null);
+    const meanUhi = uhiVals.reduce((a,b)=>a+b,0)/uhiVals.length;
+    const lastUhi = uhiVals[uhiVals.length-1];
+    document.getElementById('m-current-uhi').textContent = lastUhi.toFixed(2)+'°';
+    document.getElementById('m-mean-uhi').textContent    = meanUhi.toFixed(2)+'°';
+
+    buildMainChart(d);
+    buildLSTChart(d);
+    setLoading('main-loader', false);
+    setLoading('lst-loader', false);
+    return d;
+  } catch(e) {
+    setLoading('main-loader', false);
+    console.warn('historical fetch failed', e);
+  }
+}
+
+async function loadTestPredictions() {
+  try {
+    const d = await fetchJSON(`${API}/test_predictions`);
+    buildTestChart(d);
+    setLoading('test-loader', false);
+  } catch(e) { setLoading('test-loader', false); console.warn(e); }
+}
+
+async function loadForecast() {
+  const endYear = document.getElementById('forecast-end-year').value;
+  setLoading('forecast-loader', true);
+  try {
+    const d = await fetchJSON(`${API}/forecast?end_year=${endYear}`);
+    forecastData = d;
+    buildMainChart(histData, d);
+    buildForecastChart(d);
+    buildSummaryTable(d, parseInt(endYear));
+    updateForecastMetricCard(d, parseInt(endYear));
+    setLoading('forecast-loader', false);
+  } catch(e) { setLoading('forecast-loader', false); console.warn(e); }
+}
+
+
+async function loadSeasonal() {
+  setLoading('seasonal-loader', true);
+  try {
+    const d = await fetchJSON(`${API}/seasonal`);
+    buildSeasonalChart(d);
+    setLoading('seasonal-loader', false);
+  } catch(e) { setLoading('seasonal-loader', false); }
+}
+
+async function loadHeatmap() {
+  try {
+    const d = await fetchJSON(`${API}/heatmap_data`);
+    buildHeatmapTable(d);
+  } catch(e) { console.warn(e); }
+}
+
+async function loadYearlyTrend() {
+  try {
+    const d = await fetchJSON(`${API}/yearly_trend`);
+    buildTrendChart(d);
+  } catch(e) { console.warn(e); }
+}
+
+
+ 
+function buildMainChart(hist, fc) {
+  const ctx = document.getElementById('main-chart').getContext('2d');
+  if (charts.main) charts.main.destroy();
+
+  // Subsample for performance
+  const histSmoothed = rollingMean(hist.uhi, smoothWindow);
+  const hs = subsample(histSmoothed, hist.dates, 400);
+
+  const datasets = [
+    {
+      label: 'Historical UHI',
+      data: hs.arr,
+      borderColor: '#3B82F6',
+      backgroundColor: 'rgba(59,130,246,0.08)',
+      borderWidth: 1.5,
+      pointRadius: 0,
+      fill: true,
+      tension: 0.3,
+      order: 3,
+    }
+  ];
+
+  let labels = hs.labels.map(d => d.substring(0,7));
+
+  if (fc) {
+    const fcSmoothed = rollingMean(fc.predicted, Math.max(smoothWindow, 4));
+    const fs = subsample(fcSmoothed, fc.dates, 400);
+    const ciL = subsample(fc.ci_low, fc.dates, 400);
+    const ciH = subsample(fc.ci_high, fc.dates, 400);
+
+  
+    datasets.push({
+      label: 'CI High',
+      data: [...Array(hs.arr.length).fill(null), ...ciH.arr],
+      borderColor: 'transparent',
+      backgroundColor: 'rgba(249,115,22,0.08)',
+      pointRadius: 0, fill: '+1', order: 1,
+    });
+    datasets.push({
+      label: 'CI Low',
+      data: [...Array(hs.arr.length).fill(null), ...ciL.arr],
+      borderColor: 'transparent',
+      backgroundColor: 'rgba(249,115,22,0.08)',
+      pointRadius: 0, fill: false, order: 1,
+    });
+    datasets.push({
+      label: 'Forecast UHI',
+      data: [...Array(hs.arr.length).fill(null), ...fs.arr],
+      borderColor: '#F97316',
+      borderWidth: 2,
+      borderDash: [6,3],
+      pointRadius: 0,
+      fill: false,
+      tension: 0.3,
+      order: 2,
+    });
+
+    labels = [...hs.labels, ...fs.labels].map(d=>d.substring(0,7));
+  }
+
+  charts.main = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      ...CHART_DEFAULTS,
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        legend: {
+          display: true,
+          position: 'top',
+          align: 'end',
+          labels: {
+            color: '#8BA3C0',
+            font: { family:"'JetBrains Mono',monospace", size:10 },
+            boxWidth: 12, boxHeight: 2, padding: 14,
+            filter: item => !['CI High','CI Low'].includes(item.text)
+          }
+        }
+      }
+    }
+  });
+}
+
+function buildTestChart(d) {
+  const ctx = document.getElementById('test-chart').getContext('2d');
+  if (charts.test) charts.test.destroy();
+  const labels = d.dates.map(x=>x.substring(0,7));
+  charts.test = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Actual', data:d.actual, borderColor:'#3B82F6', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false },
+        { label:'Predicted', data:d.predicted, borderColor:'#10B981', borderWidth:1.5, pointRadius:0, borderDash:[4,2], tension:0.3, fill:false },
+      ]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        legend: {
+          display: true, position:'top', align:'end',
+          labels:{ color:'#8BA3C0', font:{family:"'JetBrains Mono',monospace",size:10}, boxWidth:12,boxHeight:2,padding:10 }
+        }
+      }
+    }
+  });
+}
+
+function buildFeatChart(d) {
+  const ctx = document.getElementById('feat-chart').getContext('2d');
+  if (charts.feat) charts.feat.destroy();
+  const colors = d.features.map((_,i) => `hsla(${200+i*18},70%,55%,0.8)`);
+  charts.feat = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: d.features,
+      datasets: [{ label:'Importance', data:d.importance, backgroundColor:colors, borderWidth:0, borderRadius:4 }]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      indexAxis: 'y',
+      scales: {
+        x: { ...CHART_DEFAULTS.scales.x, ticks:{ ...CHART_DEFAULTS.scales.x.ticks, callback:v=>v.toFixed(2) } },
+        y: { ...CHART_DEFAULTS.scales.y, ticks:{ color:'#4D6A8A', font:{family:"'JetBrains Mono',monospace",size:9} }, grid:{display:false} }
+      }
+    }
+  });
+}
+
+function buildForecastChart(fc) {
+  const ctx = document.getElementById('forecast-chart').getContext('2d');
+  if (charts.forecast) charts.forecast.destroy();
+
+  let labels, predicted, ciL, ciH;
+
+  if (forecastView === 'annual') {
+    // Aggregate weekly → annual
+    const byYear = {};
+    fc.dates.forEach((d,i) => {
+      const yr = d.substring(0,4);
+      if (!byYear[yr]) byYear[yr]={ p:[], l:[], h:[] };
+      byYear[yr].p.push(fc.predicted[i]);
+      byYear[yr].l.push(fc.ci_low[i]);
+      byYear[yr].h.push(fc.ci_high[i]);
+    });
+    labels    = Object.keys(byYear);
+    predicted = labels.map(y => byYear[y].p.reduce((a,b)=>a+b,0)/byYear[y].p.length);
+    ciL       = labels.map(y => byYear[y].l.reduce((a,b)=>a+b,0)/byYear[y].l.length);
+    ciH       = labels.map(y => byYear[y].h.reduce((a,b)=>a+b,0)/byYear[y].h.length);
+  } else {
+    const fs = subsample(fc.predicted, fc.dates, 400);
+    const fl = subsample(fc.ci_low, fc.dates, 400);
+    const fh = subsample(fc.ci_high, fc.dates, 400);
+    labels    = fs.labels.map(d=>d.substring(0,7));
+    predicted = fs.arr;
+    ciL       = fl.arr;
+    ciH       = fh.arr;
+  }
+
+  charts.forecast = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'CI Band', data:ciH, borderColor:'transparent', backgroundColor:'rgba(249,115,22,0.1)', fill:'+1', pointRadius:0 },
+        { label:'CI Low',  data:ciL, borderColor:'transparent', backgroundColor:'rgba(249,115,22,0.1)', fill:false, pointRadius:0 },
+        { label:'Forecast UHI', data:predicted, borderColor:'#F97316', backgroundColor:'rgba(249,115,22,0.15)',
+          borderWidth:2.5, pointRadius:forecastView==='annual'?4:0, pointBackgroundColor:'#F97316',
+          fill:false, tension:0.4 },
+      ]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        legend: {
+          display:true, position:'top', align:'end',
+          labels:{ color:'#8BA3C0', font:{family:"'JetBrains Mono',monospace",size:10}, boxWidth:12,boxHeight:2,padding:10,
+                   filter: item => !['CI Band','CI Low'].includes(item.text) }
+        }
+      }
+    }
+  });
+}
+
+function buildTrendChart(d) {
+  const ctx = document.getElementById('trend-chart').getContext('2d');
+  if (charts.trend) charts.trend.destroy();
+  const years   = d.yearly.map(r=>r.year);
+  const uhiVals = d.yearly.map(r=>+r.UHI.toFixed(3));
+
+
+  const sl = d.slopes.uhi, ic = d.slopes.uhi_b;
+  const trendLine = years.map(y => +(sl*y+ic).toFixed(3));
+
+  charts.trend = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [
+        { label:'Annual mean', data:uhiVals, borderColor:'#3B82F6', backgroundColor:'rgba(59,130,246,0.15)',
+          pointRadius:5, pointBackgroundColor:'#3B82F6', borderWidth:2, fill:true, tension:0.1 },
+        { label:'Trend', data:trendLine, borderColor:'#F97316', borderWidth:1.5,
+          borderDash:[5,3], pointRadius:0, fill:false },
+      ]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        legend:{ display:true, position:'top', align:'end',
+          labels:{ color:'#8BA3C0', font:{family:"'JetBrains Mono',monospace",size:10}, boxWidth:12,boxHeight:2,padding:10 } }
+      }
+    }
+  });
+}
+
+function buildSeasonalChart(d) {
+  const ctx = document.getElementById('seasonal-chart').getContext('2d');
+  if (charts.seasonal) charts.seasonal.destroy();
+  charts.seasonal = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: d.months,
+      datasets: [
+        { label:'Mean UHI', data:d.mean, backgroundColor: d.mean.map(v=>uhi2color(v,0.7)),
+          borderColor: d.mean.map(v=>uhi2color(v)), borderWidth:1, borderRadius:4 },
+        { label:'Std Dev', data:d.std, type:'line', borderColor:'#8BA3C0',
+          borderWidth:1.5, pointRadius:3, pointBackgroundColor:'#8BA3C0', fill:false, tension:0.3 },
+      ]
+    },
+    options: { ...CHART_DEFAULTS }
+  });
+}
+
+function buildLSTChart(d) {
+  const ctx = document.getElementById('lst-chart').getContext('2d');
+  if (charts.lst) charts.lst.destroy();
+  const hs = subsample(d.urban_lst, d.dates, 300);
+  const rs = subsample(d.rural_lst, d.dates, 300);
+  const labels = hs.labels.map(x=>x.substring(0,7));
+  charts.lst = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Urban LST', data:hs.arr, borderColor:'#EF4444', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false },
+        { label:'Rural LST', data:rs.arr, borderColor:'#10B981', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false },
+      ]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      plugins:{ ...CHART_DEFAULTS.plugins,
+        legend:{ display:true, position:'top', align:'end',
+          labels:{ color:'#8BA3C0', font:{family:"'JetBrains Mono',monospace",size:10}, boxWidth:12,boxHeight:2,padding:10 } } }
+    }
+  });
+}
+
+function buildHeatmapTable(d) {
+  const container = document.getElementById('heatmap-container');
+  const min = Math.min(...d.values.flat().filter(v=>v!==null));
+  const max = Math.max(...d.values.flat().filter(v=>v!==null));
+
+  function cellColor(v) {
+    if (v === null) return 'transparent';
+    const t = (v - min) / (max - min);
+    const r = Math.round(59  + t*(239-59));
+    const g = Math.round(130 + t*(68-130));
+    const b = Math.round(246 + t*(68-246));
+    return `rgb(${r},${g},${b})`;
+  }
+  function textColor(v) {
+    if (v === null) return 'transparent';
+    const t = (v - min) / (max - min);
+    return t > 0.5 ? '#fff' : '#E2EAF4';
+  }
+
+  let html = '<table class="heatmap-table"><thead><tr><th>Year</th>';
+  d.months.forEach(m => html += `<th>${m}</th>`);
+  html += '</tr></thead><tbody>';
+
+  d.years.forEach((yr, yi) => {
+    html += `<tr><td class="year-cell">${yr}</td>`;
+    d.months.forEach((_, mi) => {
+      const v = d.values[yi][mi];
+      const bg = cellColor(v);
+      const fg = textColor(v);
+      html += `<td style="background:${bg};color:${fg}" title="${yr} ${d.months[mi]}: ${v!==null?v.toFixed(1):'N/A'}°C">${v!==null?v.toFixed(1):'—'}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function buildSummaryTable(fc, endYear) {
+  const tbody = document.querySelector('#summary-table tbody');
+  const lastYear = new Date().getFullYear();
+  let rows = '';
+
+  for (let yr = lastYear; yr < endYear; yr += 5) {
+    const yEnd = Math.min(yr+4, endYear);
+    const mask = fc.dates.filter(d => {
+      const y = parseInt(d.substring(0,4));
+      return y >= yr && y <= yEnd;
+    });
+    if (!mask.length) continue;
+    const indices = fc.dates.map((d,i)=>[d,i]).filter(([d])=>{
+      const y=parseInt(d.substring(0,4));return y>=yr&&y<=yEnd;
+    }).map(([,i])=>i);
+    const mean = indices.reduce((s,i)=>s+fc.predicted[i],0)/indices.length;
+    const lo   = indices.reduce((s,i)=>s+fc.ci_low[i],0)/indices.length;
+    const hi   = indices.reduce((s,i)=>s+fc.ci_high[i],0)/indices.length;
+    rows += `<tr>
+      <td>${yr}–${yEnd}</td>
+      <td class="uhi-val">${mean.toFixed(2)}°C</td>
+      <td>${lo.toFixed(2)}°C</td>
+      <td>${hi.toFixed(2)}°C</td>
+    </tr>`;
+  }
+  tbody.innerHTML = rows || '<tr><td colspan="4">No data</td></tr>';
+}
+
+function updateForecastMetricCard(fc, endYear) {
+  const lastYearPreds = fc.dates.map((d,i)=>[d,i])
+    .filter(([d])=>d.startsWith(String(endYear)))
+    .map(([,i])=>fc.predicted[i]);
+  if (!lastYearPreds.length) return;
+  const mean = lastYearPreds.reduce((a,b)=>a+b,0)/lastYearPreds.length;
+  document.getElementById('m-2040-uhi').textContent = mean.toFixed(2)+'°';
+}
+
+
+function buildZoneCharts() {
+  const sorted = [...ZONES].sort((a,b)=>b.uhi-a.uhi);
+
+  const ctx1 = document.getElementById('zone-chart').getContext('2d');
+  if (charts.zone) charts.zone.destroy();
+  charts.zone = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(z=>z.name),
+      datasets: [{
+        label: 'Current UHI',
+        data: sorted.map(z=>z.uhi),
+        backgroundColor: sorted.map(z=>uhi2color(z.uhi,0.75)),
+        borderColor: sorted.map(z=>uhi2color(z.uhi)),
+        borderWidth: 1, borderRadius: 4
+      }]
+    },
+    options: {
+      ...CHART_DEFAULTS, indexAxis:'y',
+      scales: {
+        x: { ...CHART_DEFAULTS.scales.x, ticks:{ ...CHART_DEFAULTS.scales.x.ticks, callback:v=>v+'°' }, title:{display: true,
+      text: 'UHI (°C)',
+      color: '#8BA3C0',
+      font: { size: 12 }}},
+        y: { ...CHART_DEFAULTS.scales.y, ticks:{ color:'#4D6A8A', font:{family:"'JetBrains Mono',monospace",size:9} }, grid:{display:false},title: {
+      display: true,
+      text: 'Area (Zones)',
+      color: '#8BA3C0',
+      font: { size: 12 }
+    } }
+      }
+    }
+  });
+
+  const ctx2 = document.getElementById('zone-forecast-chart').getContext('2d');
+  if (charts.zoneFc) charts.zoneFc.destroy();
+  charts.zoneFc = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(z=>z.name),
+      datasets: [
+        { label:'Current', data:sorted.map(z=>z.uhi), backgroundColor:'rgba(59,130,246,0.5)', borderRadius:4, borderWidth:0 },
+        { label:'2040 Forecast', data:sorted.map(z=>z.proj), backgroundColor:'rgba(249,115,22,0.6)', borderRadius:4, borderWidth:0 },
+      ]
+    },
+    options: {
+      ...CHART_DEFAULTS, indexAxis:'y',
+      plugins: { ...CHART_DEFAULTS.plugins,
+        legend:{ display:true, position:'top', align:'end',
+          labels:{ color:'#8BA3C0', font:{family:"'JetBrains Mono',monospace",size:10}, boxWidth:10,boxHeight:10,padding:12 } } },
+      scales: {
+        x:{ ...CHART_DEFAULTS.scales.x, ticks:{...CHART_DEFAULTS.scales.x.ticks, callback:v=>v+'°'},title: {
+      display: true,
+      text: 'UHI (°C)',
+      color: '#8BA3C0',
+      font: { size: 12 }
+    } },
+        y:{ ...CHART_DEFAULTS.scales.y, ticks:{color:'#4D6A8A',font:{family:"'JetBrains Mono',monospace",size:9}}, grid:{display:false},title: {
+      display: true,
+      text: 'Area (Zones)',
+      color: '#8BA3C0',
+      font: { size: 12 }
+    } }
+      }
+    }
+  });
+}
+
+
+ 
+let leafMap = null, circleLayer = [], heatLayer = null;
+
+function initMap() {
+  if (leafMap) return;
+  leafMap = L.map('uhi-map', { center:[19.07,72.87], zoom:11, zoomControl:true });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution:'&copy; OpenStreetMap &copy; CARTO',
+    maxZoom:19
+  }).addTo(leafMap);
+
+  renderCircles();
+
+  const heatPoints = ZONES.map(z=>[z.lat, z.lng, z.uhi/10]);
+  if (window.L.heatLayer) {
+    heatLayer = L.heatLayer(heatPoints, {
+      radius:55, blur:35, maxZoom:13,
+      gradient:{0.3:'#10B981',0.5:'#F59E0B',0.7:'#EF4444',1:'#7C3AED'}
+    });
+  }
+}
+
+function renderCircles() {
+  circleLayer.forEach(c=>c.remove());
+  circleLayer = [];
+  ZONES.forEach(z => {
+    const c = L.circleMarker([z.lat, z.lng], {
+      radius: 10 + z.uhi * 2,
+      fillColor: uhi2color(z.uhi, 0.8),
+      color: uhi2color(z.uhi),
+      weight: 1.5,
+      fillOpacity: 0.75
+    }).bindPopup(`
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E2EAF4;background:#0F1A2E;padding:8px;border-radius:6px;min-width:160px">
+        <b style="font-size:13px">${z.name}</b><br>
+        <span style="color:#8BA3C0">Current UHI: </span><span style="color:#F97316">${z.uhi}°C</span><br>
+        <span style="color:#8BA3C0">2040 Forecast: </span><span style="color:#EF4444">${z.proj}°C</span><br>
+        <span style="color:#8BA3C0">Type: </span>${z.type}
+      </div>
+    `, { className:'uhi-popup' }).addTo(leafMap);
+    circleLayer.push(c);
+  });
+}
+
+function setMapMode(mode, btn) {
+  document.querySelectorAll('#map-mode-circles,#map-mode-heat').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if (mode === 'heat') {
+    circleLayer.forEach(c=>c.remove());
+    if (heatLayer) heatLayer.addTo(leafMap);
+  } else {
+    if (heatLayer) heatLayer.remove();
+    renderCircles();
+  }
+}
+
+ 
+
+ 
+function switchPage(page, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  btn.classList.add('active');
+
+
+  if (page === 'map') {
+    setTimeout(() => { initMap(); buildZoneCharts(); leafMap.invalidateSize(); }, 100);
+  }
+  if (page === 'analysis') {
+    loadSeasonal();
+    loadHeatmap();
+    loadYearlyTrend();
+  }
+  if (page === 'forecast') {
+    loadYearlyTrend();
+  }
+}
+
+function setSmooth(w, btn) {
+  document.querySelectorAll('.chart-actions .chip-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  smoothWindow = w;
+  if (histData) buildMainChart(histData, forecastData);
+}
+
+function setForecastView(view, btn) {
+  document.querySelectorAll('#page-forecast .chart-actions .chip-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  forecastView = view;
+  if (forecastData) buildForecastChart(forecastData);
+}
+
+async function runAll() {
+  showRunBtn(true);
+  document.getElementById('model-status').textContent = 'Computing...';
+  try {
+    await Promise.all([loadMetrics(), loadHistorical()]);
+    await Promise.all([loadTestPredictions(), loadForecast()]);
+    document.getElementById('model-status').textContent = 'Model Ready';
+  } catch(e) {
+    document.getElementById('model-status').textContent = 'Error — check server';
+    console.error(e);
+  }
+  showRunBtn(false);
+}
+
+ 
+ 
+window.addEventListener('DOMContentLoaded', () => {
+  runAll();
+});
+</script>
+</body>
+</html>
